@@ -74,7 +74,7 @@ app.get('/auth/callback', async (req, res) => {
 
     console.log(`✅ User authenticated: ${userId}`);
 
-    // Return success page or redirect to extension
+    // Return success page that communicates with extension
     res.send(`
       <!DOCTYPE html>
       <html>
@@ -109,12 +109,14 @@ app.get('/auth/callback', async (req, res) => {
             <h1>Connected to Google Sheets!</h1>
             <p>SpecClip can now save products to your SpecBooks.</p>
             <p style="margin-top: 30px; font-size: 14px; color: #999;">
-              You can close this window and return to the extension.
+              This window will close in 3 seconds...
             </p>
           </div>
           <script>
-            // Store userId in localStorage for extension to access
-            localStorage.setItem('specclip_user_id', '${userId}');
+            // Add userId to URL so extension can detect it
+            const userId = '${userId}';
+            window.location.hash = 'success=' + encodeURIComponent(userId);
+            
             // Close window after 3 seconds
             setTimeout(() => window.close(), 3000);
           </script>
