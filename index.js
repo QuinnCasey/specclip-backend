@@ -4,6 +4,7 @@
 const express = require('express');
 const cors = require('cors');
 const { google } = require('googleapis');
+const { sql } = require('@vercel/postgres');
 require('dotenv').config();
 
 const app = express();
@@ -23,9 +24,83 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_REDIRECT_URI
 );
 
-// In-memory token storage (in production, use a database)
-// Format: { userId: { access_token, refresh_token, expiry_date } }
-const tokenStore = new Map();
+// ============================================================================
+// DATABASE SETUP
+// ============================================================================
+
+/**
+ * Initialize database table for token storage
+ */
+async function initDatabase() {
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS user_tokens (
+        user_id TEXT PRIMARY KEY,
+        access_token TEXT NOT NULL,
+        refresh_token TEXT,
+        expiry_date BIGINT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+    console.log('✅ Database table ready');
+  } catch (error) {
+    console.error('❌ Database init error:', error);
+  }
+}
+
+// Initialize database on startup
+initDatabase();
+
+/**
+ * Store tokens in database
+ */
+async function storeTokens(userId, tokens) {
+  try {
+    await sql`
+      INSERT INTO user_tokens (user_id, access_token, refresh_token, expiry_date, updated_at)
+      VALUES (${userId}, ${tokens.access_token}, ${tokens.refresh_token || null}, ${tokens.expiry_date || null}, CURRENT_TIMESTAMP)
+      ON CONFLICT (user_id) 
+      DO UPDATE SET 
+        access_token = ${tokens.access_token},
+        refresh_token = COALESCE(${tokens.refresh_token}, user_tokens.refresh_token),
+        expiry_date = ${tokens.expiry_date || null},
+        updated_at = CURRENT_TIMESTAMP
+    `;
+    console.log(`✅ Tokens stored for ${userId}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error storing tokens:', error);
+    return false;
+  }
+}
+
+/**
+ * Retrieve tokens from database
+ */
+async function getTokens(userId) {
+  try {
+    const result = await sql`
+      SELECT access_token, refresh_token, expiry_date 
+      FROM user_tokens 
+      WHERE user_id = ${userId}
+    `;
+    
+    if (result.rows.length === 0) {
+      return null;
+    }
+    
+    const row = result.rows[0];
+    return {
+      access_token: row.access_token,
+      refresh_token: row.refresh_token,
+      expiry_date: row.expiry_date
+    };
+  } catch (error) {
+    console.error('❌ Error retrieving tokens:', error);
+    return null;
+  }
+}
 
 // ============================================================================
 // OAUTH ENDPOINTS
@@ -69,8 +144,8 @@ app.get('/auth/callback', async (req, res) => {
     const userInfo = await oauth2.userinfo.get();
     const userId = userInfo.data.email;
 
-    // Store tokens (in production, encrypt and store in database)
-    tokenStore.set(userId, tokens);
+    // Store tokens in database
+    await storeTokens(userId, tokens);
 
     console.log(`✅ User authenticated: ${userId}`);
 
@@ -134,14 +209,14 @@ app.get('/auth/callback', async (req, res) => {
  * POST /auth/verify
  * Verify if user has valid tokens
  */
-app.post('/auth/verify', (req, res) => {
+app.post('/auth/verify', async (req, res) => {
   const { userId } = req.body;
 
   if (!userId) {
     return res.status(400).json({ error: 'userId required' });
   }
 
-  const tokens = tokenStore.get(userId);
+  const tokens = await getTokens(userId);
   
   if (!tokens) {
     return res.json({ authenticated: false });
@@ -161,7 +236,7 @@ app.post('/auth/verify', (req, res) => {
  * Helper: Get authenticated Sheets API client
  */
 async function getSheetsClient(userId) {
-  const tokens = tokenStore.get(userId);
+  const tokens = await getTokens(userId);
   
   if (!tokens) {
     throw new Error('User not authenticated');
@@ -175,7 +250,7 @@ async function getSheetsClient(userId) {
   if (tokens.expiry_date && tokens.expiry_date < now) {
     console.log('🔄 Refreshing expired token...');
     const { credentials } = await oauth2Client.refreshAccessToken();
-    tokenStore.set(userId, credentials);
+    await storeTokens(userId, credentials);
     oauth2Client.setCredentials(credentials);
   }
 
