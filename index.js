@@ -233,6 +233,95 @@ app.post('/auth/verify', async (req, res) => {
 // ============================================================================
 
 /**
+ * Apply row formatting based on Apps Script rules
+ * Mirrors the formatting from the Apps Script: Karla font, specific column formats
+ */
+async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
+  const DATE_FORMAT = "MM/DD/YYYY";
+  const FONT_FAMILY = "Karla";
+  
+  // Column formatting rules (1-indexed, matching Apps Script)
+  const columnFormats = {
+    2:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: DATE_FORMAT, horizontalAlignment: "LEFT" },
+    4:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" },
+    5:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" },
+    6:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" },
+    7:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" },
+    8:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" },
+    9:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" },
+    10: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: DATE_FORMAT, horizontalAlignment: "LEFT" },
+    11: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: null, horizontalAlignment: "LEFT" },
+    12: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: null, horizontalAlignment: "LEFT" }
+  };
+  
+  const requests = [];
+  
+  // Apply formatting to each column
+  for (const [col, fmt] of Object.entries(columnFormats)) {
+    const colNum = Number(col);
+    
+    // Skip column 3 (image column)
+    if (colNum === 3) continue;
+    
+    const cellFormat = {
+      backgroundColor: fmt.background,
+      textFormat: {
+        fontFamily: FONT_FAMILY,
+        fontSize: fmt.fontSize,
+        bold: fmt.bold
+      },
+      horizontalAlignment: fmt.horizontalAlignment,
+      wrapStrategy: fmt.wrap ? "WRAP" : "OVERFLOW_CELL"
+    };
+    
+    if (fmt.numberFormat) {
+      cellFormat.numberFormat = {
+        type: "DATE",
+        pattern: fmt.numberFormat
+      };
+    }
+    
+    requests.push({
+      repeatCell: {
+        range: {
+          sheetId: sheet.properties.sheetId,
+          startRowIndex: rowNumber - 1,
+          endRowIndex: rowNumber,
+          startColumnIndex: colNum - 1,
+          endColumnIndex: colNum
+        },
+        cell: {
+          userEnteredFormat: cellFormat
+        },
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,wrapStrategy,numberFormat)"
+      }
+    });
+  }
+  
+  // Merge cells A:B for the date column (column 2 logic)
+  requests.push({
+    mergeCells: {
+      range: {
+        sheetId: sheet.properties.sheetId,
+        startRowIndex: rowNumber - 1,
+        endRowIndex: rowNumber,
+        startColumnIndex: 0, // Column A
+        endColumnIndex: 2    // Column B
+      },
+      mergeType: "MERGE_ALL"
+    }
+  });
+  
+  if (requests.length > 0) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: { requests }
+    });
+    console.log(`   ✅ Applied formatting to row ${rowNumber}`);
+  }
+}
+
+/**
  * Helper: Get authenticated Sheets API client
  */
 async function getSheetsClient(userId) {
@@ -454,29 +543,8 @@ app.post('/api/save-product', async (req, res) => {
       });
     }
 
-    // Enable text wrapping for dimensions column
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: sheetId,
-      requestBody: {
-        requests: [{
-          repeatCell: {
-            range: {
-              sheetId: sheet.properties.sheetId,
-              startRowIndex: insertRow - 1,
-              endRowIndex: insertRow,
-              startColumnIndex: 7, // Column H
-              endColumnIndex: 8
-            },
-            cell: {
-              userEnteredFormat: {
-                wrapStrategy: 'WRAP'
-              }
-            },
-            fields: 'userEnteredFormat.wrapStrategy'
-          }
-        }]
-      }
-    });
+    // Apply comprehensive row formatting (Karla font, date formats, wrapping, etc.)
+    await applyRowFormatting(sheets, sheetId, sheet, insertRow);
 
     console.log(`✅ Product saved to row ${insertRow}`);
 
