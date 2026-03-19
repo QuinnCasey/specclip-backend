@@ -245,33 +245,45 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
   let rowHeight = null;
   
   if (rowNumber > 2) {
-    const sourceRow = await sheets.spreadsheets.get({
-      spreadsheetId: sheetId,
-      ranges: [`${sheet.properties.title}!K${rowNumber - 1}:L${rowNumber - 1}`],
-      fields: 'sheets(data(rowData(values(dataValidation)),rowMetadata))'
-    });
-    
-    const sheetData = sourceRow.data.sheets[0]?.data[0];
-    const rowData = sheetData?.rowData[0];
-    
-    if (rowData) {
-      // Get data validation from columns K and L
-      if (rowData.values) {
-        // Column K (index 0 in the K:L range)
-        if (rowData.values[0]?.dataValidation) {
-          dataValidations[10] = rowData.values[0].dataValidation;
-        }
-        // Column L (index 1 in the K:L range)
-        if (rowData.values[1]?.dataValidation) {
-          dataValidations[11] = rowData.values[1].dataValidation;
+    try {
+      const sourceRow = await sheets.spreadsheets.get({
+        spreadsheetId: sheetId,
+        ranges: [`${sheet.properties.title}!K${rowNumber - 1}:L${rowNumber - 1}`],
+        fields: 'sheets(data(rowData(values(dataValidation)),rowMetadata))'
+      });
+      
+      // Safely navigate the response structure
+      const sheetsData = sourceRow?.data?.sheets;
+      if (sheetsData && sheetsData.length > 0) {
+        const sheetData = sheetsData[0]?.data;
+        if (sheetData && sheetData.length > 0) {
+          const rowDataArray = sheetData[0]?.rowData;
+          if (rowDataArray && rowDataArray.length > 0) {
+            const rowData = rowDataArray[0];
+            
+            // Get data validation from columns K and L
+            if (rowData?.values) {
+              // Column K (index 0 in the K:L range)
+              if (rowData.values[0]?.dataValidation) {
+                dataValidations[10] = rowData.values[0].dataValidation;
+              }
+              // Column L (index 1 in the K:L range)
+              if (rowData.values[1]?.dataValidation) {
+                dataValidations[11] = rowData.values[1].dataValidation;
+              }
+            }
+          }
+          
+          // Get row height from rowMetadata
+          const rowMetadata = sheetData[0]?.rowMetadata;
+          if (rowMetadata && rowMetadata.length > 0 && rowMetadata[0]?.pixelSize) {
+            rowHeight = rowMetadata[0].pixelSize;
+          }
         }
       }
-    }
-    
-    // Get row height from rowMetadata array
-    const rowMetadata = sheetData?.rowMetadata;
-    if (rowMetadata && rowMetadata.length > 0 && rowMetadata[0]?.pixelSize) {
-      rowHeight = rowMetadata[0].pixelSize;
+    } catch (error) {
+      console.error('Error fetching data validation/row height:', error);
+      // Continue without data validation - don't fail the save
     }
   }
   
@@ -623,9 +635,11 @@ app.post('/api/save-product', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error saving product:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       status: 'error',
-      message: error.message || 'Failed to save product'
+      message: error.message || 'Failed to save product',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
