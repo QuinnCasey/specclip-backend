@@ -289,14 +289,15 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
   
   // Column formatting rules (1-indexed, matching Apps Script)
   const columnFormats = {
-    2:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: DATE_FORMAT, horizontalAlignment: "LEFT" },
-    4:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" },
-    5:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" },
-    6:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" },
-    7:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" },
-    8:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" },
-    9:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" },
-    10: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: DATE_FORMAT, horizontalAlignment: "LEFT" },
+    2:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: DATE_FORMAT, horizontalAlignment: "CENTER" },
+    3:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
+    4:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
+    5:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
+    6:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
+    7:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
+    8:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
+    9:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
+    10: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: DATE_FORMAT, horizontalAlignment: "CENTER" },
     11: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: null, horizontalAlignment: "LEFT" },
     12: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: null, horizontalAlignment: "LEFT" }
   };
