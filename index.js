@@ -163,7 +163,7 @@ app.get('/auth/callback', async (req, res) => {
               justify-content: center;
               height: 100vh;
               margin: 0;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              background: #451F1F;
             }
             .container {
               background: white;
@@ -173,7 +173,7 @@ app.get('/auth/callback', async (req, res) => {
               text-align: center;
               max-width: 400px;
             }
-            h1 { color: #667eea; margin: 0 0 20px 0; }
+            h1 { color: #451F1F; margin: 0 0 20px 0; }
             p { color: #666; line-height: 1.6; }
             .success { font-size: 48px; margin-bottom: 20px; }
           </style>
