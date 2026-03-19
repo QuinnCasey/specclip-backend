@@ -234,11 +234,46 @@ app.post('/auth/verify', async (req, res) => {
 
 /**
  * Apply row formatting based on Apps Script rules
- * Mirrors the formatting from the Apps Script: Karla font, specific column formats
+ * Preserves data validation in columns K and L, and row height
  */
 async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
   const DATE_FORMAT = "MM/DD/YYYY";
   const FONT_FAMILY = "Karla";
+  
+  // First, get the data validation AND row height from the row above (if exists)
+  let dataValidations = {};
+  let rowHeight = null;
+  
+  if (rowNumber > 2) {
+    const sourceRow = await sheets.spreadsheets.get({
+      spreadsheetId: sheetId,
+      ranges: [`${sheet.properties.title}!K${rowNumber - 1}:L${rowNumber - 1}`],
+      fields: 'sheets(data(rowData(values(dataValidation)),rowMetadata(pixelSize)))'
+    });
+    
+    const sheetData = sourceRow.data.sheets[0]?.data[0];
+    const rowData = sheetData?.rowData[0];
+    
+    if (rowData) {
+      // Get data validation from columns K and L
+      if (rowData.values) {
+        // Column K (index 0 in the K:L range)
+        if (rowData.values[0]?.dataValidation) {
+          dataValidations[10] = rowData.values[0].dataValidation;
+        }
+        // Column L (index 1 in the K:L range)
+        if (rowData.values[1]?.dataValidation) {
+          dataValidations[11] = rowData.values[1].dataValidation;
+        }
+      }
+    }
+    
+    // Get row height
+    const rowMetadata = sheetData?.rowMetadata?.[0];
+    if (rowMetadata?.pixelSize) {
+      rowHeight = rowMetadata.pixelSize;
+    }
+  }
   
   // Column formatting rules (1-indexed, matching Apps Script)
   const columnFormats = {
@@ -255,6 +290,24 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
   };
   
   const requests = [];
+  
+  // Set row height if we have it
+  if (rowHeight) {
+    requests.push({
+      updateDimensionProperties: {
+        range: {
+          sheetId: sheet.properties.sheetId,
+          dimension: "ROWS",
+          startIndex: rowNumber - 1,
+          endIndex: rowNumber
+        },
+        properties: {
+          pixelSize: rowHeight
+        },
+        fields: "pixelSize"
+      }
+    });
+  }
   
   // Apply formatting to each column
   for (const [col, fmt] of Object.entries(columnFormats)) {
@@ -281,6 +334,16 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
       };
     }
     
+    // Add data validation if it exists for this column
+    const validationKey = colNum - 1; // Convert to 0-indexed
+    if (dataValidations[validationKey]) {
+      cellFormat.dataValidation = dataValidations[validationKey];
+    }
+    
+    const fields = dataValidations[validationKey]
+      ? "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,wrapStrategy,numberFormat,dataValidation)"
+      : "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,wrapStrategy,numberFormat)";
+    
     requests.push({
       repeatCell: {
         range: {
@@ -293,7 +356,7 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
         cell: {
           userEnteredFormat: cellFormat
         },
-        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,wrapStrategy,numberFormat)"
+        fields: fields
       }
     });
   }
@@ -317,7 +380,7 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
       spreadsheetId: sheetId,
       requestBody: { requests }
     });
-    console.log(`   ✅ Applied formatting to row ${rowNumber}`);
+    console.log(`   ✅ Applied formatting to row ${rowNumber} (with data validation and row height preserved)`);
   }
 }
 
@@ -456,7 +519,7 @@ app.post('/api/save-product', async (req, res) => {
       dimensionsQty, // H: Dimensions/Qty
       leadTimeComments, // I: Lead Time/Comments
       timestamp, // J: Last Updated
-      product.status || 'Clipped' // K: Status
+      product.status || 'Sourced' // K: Status
     ];
 
     // Insert row if needed
