@@ -248,7 +248,7 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
     const sourceRow = await sheets.spreadsheets.get({
       spreadsheetId: sheetId,
       ranges: [`${sheet.properties.title}!K${rowNumber - 1}:L${rowNumber - 1}`],
-      fields: 'sheets(data(rowData(values(dataValidation)),rowMetadata(pixelSize)))'
+      fields: 'sheets(data(rowData(values(dataValidation)),rowMetadata))'
     });
     
     const sheetData = sourceRow.data.sheets[0]?.data[0];
@@ -268,10 +268,10 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
       }
     }
     
-    // Get row height
-    const rowMetadata = sheetData?.rowMetadata?.[0];
-    if (rowMetadata?.pixelSize) {
-      rowHeight = rowMetadata.pixelSize;
+    // Get row height from rowMetadata array
+    const rowMetadata = sheetData?.rowMetadata;
+    if (rowMetadata && rowMetadata.length > 0 && rowMetadata[0]?.pixelSize) {
+      rowHeight = rowMetadata[0].pixelSize;
     }
   }
   
@@ -334,14 +334,19 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
       };
     }
     
-    // Add data validation if it exists for this column
+    // Build the cell object
+    const cellData = {
+      userEnteredFormat: cellFormat
+    };
+    
+    // Add data validation if it exists for this column (separate from format)
     const validationKey = colNum - 1; // Convert to 0-indexed
     if (dataValidations[validationKey]) {
-      cellFormat.dataValidation = dataValidations[validationKey];
+      cellData.dataValidation = dataValidations[validationKey];
     }
     
     const fields = dataValidations[validationKey]
-      ? "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,wrapStrategy,numberFormat,dataValidation)"
+      ? "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,wrapStrategy,numberFormat),dataValidation"
       : "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,wrapStrategy,numberFormat)";
     
     requests.push({
@@ -353,9 +358,7 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
           startColumnIndex: colNum - 1,
           endColumnIndex: colNum
         },
-        cell: {
-          userEnteredFormat: cellFormat
-        },
+        cell: cellData,
         fields: fields
       }
     });
