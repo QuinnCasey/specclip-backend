@@ -455,6 +455,7 @@ app.post('/api/save-product', async (req, res) => {
     console.log(`   Sheet ID: ${sheetId}`);
     console.log(`   Sheet Name: ${sheetName}`);
     console.log(`   Product: ${product.productName}`);
+    console.log(`   Product fields:`, JSON.stringify(product, null, 2));
 
     // Get authenticated Sheets client
     const sheets = await getSheetsClient(userId);
@@ -527,6 +528,9 @@ app.post('/api/save-product', async (req, res) => {
       minute: '2-digit',
       hour12: true
     });
+
+    console.log(`   imageUrl: ${product.imageUrl}`);
+    console.log(`   leadTime: ${product.leadTime}, comments: ${product.comments}`);
 
     const rowData = [
       product.imageUrl ? `=IMAGE("${product.imageUrl}", 1)` : '', // A: Image (A:B merged)
