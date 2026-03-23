@@ -486,16 +486,17 @@ app.post('/api/save-product', async (req, res) => {
     const lastRow = sheetGridProperties.rowCount;
     let insertRow = lastRow + 1;
 
-    // Check for footer row (contains "SPEC BOOK" in column B)
+    // Check for footer row (contains "SPEC BOOK" in any of columns A–C)
     const footerCheck = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
-      range: `${sheetTitle}!B:B`
+      range: `${sheetTitle}!A:C`
     });
 
     if (footerCheck.data.values) {
       for (let i = footerCheck.data.values.length - 1; i >= 0; i--) {
-        const cellValue = footerCheck.data.values[i]?.[0] || '';
-        if (cellValue.toString().toUpperCase().includes('SPEC BOOK')) {
+        const rowCells = footerCheck.data.values[i] || [];
+        const rowText = rowCells.join(' ').toUpperCase();
+        if (rowText.includes('SPEC BOOK')) {
           insertRow = i + 1; // Row number (1-indexed)
           console.log(`   Footer found at row ${insertRow}`);
           break;
