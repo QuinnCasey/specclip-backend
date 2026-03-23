@@ -289,17 +289,17 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
   
   // Column formatting rules (1-indexed, matching Apps Script)
   const columnFormats = {
-    2:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: DATE_FORMAT, horizontalAlignment: "CENTER" },
-    3:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
-    4:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
-    5:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
-    6:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
-    7:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
-    8:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
-    9:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
-    10: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: DATE_FORMAT, horizontalAlignment: "CENTER" },
-    11: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: null, horizontalAlignment: "LEFT" },
-    12: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: null, horizontalAlignment: "LEFT" }
+    2:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: null, horizontalAlignment: "CENTER" }, // B: Image (skipped in loop)
+    3:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" }, // C: Room/Area
+    4:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" }, // D: Specs
+    5:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" }, // E: Product Name
+    6:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" }, // F: Source
+    7:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" }, // G: Dimensions/Qty
+    8:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" }, // H: Lead Time
+    9:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" }, // I: Comments
+    10: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: DATE_FORMAT, horizontalAlignment: "CENTER" }, // J: Timestamp
+    11: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: null, horizontalAlignment: "LEFT" },  // K: Status
+    12: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: null, horizontalAlignment: "LEFT" }   // L: Dropdown (preserved)
   };
   
   const requests = [];
@@ -326,8 +326,8 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
   for (const [col, fmt] of Object.entries(columnFormats)) {
     const colNum = Number(col);
     
-    // Skip column 3 (image column)
-    if (colNum === 3) continue;
+    // Skip column 2 (image column — =IMAGE formula, no text formatting)
+    if (colNum === 2) continue;
     
     const cellFormat = {
       backgroundColor: fmt.background,
@@ -377,19 +377,6 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
     });
   }
   
-  // Merge cells A:B for the date column (column 2 logic)
-  requests.push({
-    mergeCells: {
-      range: {
-        sheetId: sheet.properties.sheetId,
-        startRowIndex: rowNumber - 1,
-        endRowIndex: rowNumber,
-        startColumnIndex: 0, // Column A
-        endColumnIndex: 2    // Column B
-      },
-      mergeType: "MERGE_ALL"
-    }
-  });
   
   if (requests.length > 0) {
     await sheets.spreadsheets.batchUpdate({
@@ -509,15 +496,14 @@ app.post('/api/save-product', async (req, res) => {
       product.quantity ? `Qty: ${product.quantity}` : ''
     ].filter(Boolean).join('\n');
 
-    const leadTimeComments = [
-      product.price,
-      product.leadTimeComments
-    ].filter(Boolean).join(' | ');
-
     const siteName = extractSiteName(product.pageUrl || '');
+    const sourceCell = product.pageUrl
+      ? `=HYPERLINK("${product.pageUrl}","${siteName.replace(/"/g, '""')}")`
+      : siteName;
+
     const timestamp = new Date().toLocaleString('en-US', {
       month: '2-digit',
-      day: '2-digit', 
+      day: '2-digit',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
@@ -525,15 +511,15 @@ app.post('/api/save-product', async (req, res) => {
     });
 
     const rowData = [
-      '', // A: Empty (merged)
-      '', // B: Empty (merged)
-      product.imageUrl ? `=IMAGE("${product.imageUrl}", 1)` : '', // C: Image
-      product.roomArea || '', // D: Room/Area
-      specs, // E: Specs
-      product.productName, // F: Product Name
-      siteName, // G: Source (with URL in note)
-      dimensionsQty, // H: Dimensions/Qty
-      leadTimeComments, // I: Lead Time/Comments
+      '', // A: Empty
+      product.imageUrl ? `=IMAGE("${product.imageUrl}", 1)` : '', // B: Image
+      product.roomArea || '', // C: Room/Area
+      specs, // D: Specs (colorFinish + additionalSpecs)
+      product.productName, // E: Product Name
+      sourceCell, // F: Source (hyperlink)
+      dimensionsQty, // G: Dimensions/Qty
+      product.leadTime || '', // H: Lead Time
+      product.comments || '', // I: Comments
       timestamp, // J: Last Updated
       product.status || 'Sourced' // K: Status
     ];
@@ -596,31 +582,6 @@ app.post('/api/save-product', async (req, res) => {
       }
     });
 
-    // Add URL as note on source cell
-    if (product.pageUrl) {
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId: sheetId,
-        requestBody: {
-          requests: [{
-            updateCells: {
-              range: {
-                sheetId: sheet.properties.sheetId,
-                startRowIndex: insertRow - 1,
-                endRowIndex: insertRow,
-                startColumnIndex: 6, // Column G
-                endColumnIndex: 7
-              },
-              rows: [{
-                values: [{
-                  note: product.pageUrl
-                }]
-              }],
-              fields: 'note'
-            }
-          }]
-        }
-      });
-    }
 
     // Apply comprehensive row formatting (Karla font, date formats, wrapping, etc.)
     await applyRowFormatting(sheets, sheetId, sheet, insertRow);
