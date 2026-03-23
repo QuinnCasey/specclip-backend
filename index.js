@@ -381,19 +381,6 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
     });
   }
   
-  // Merge A:B for the image cell
-  requests.push({
-    mergeCells: {
-      range: {
-        sheetId: sheet.properties.sheetId,
-        startRowIndex: rowNumber - 1,
-        endRowIndex: rowNumber,
-        startColumnIndex: 0, // Column A
-        endColumnIndex: 2    // Through Column B
-      },
-      mergeType: "MERGE_ALL"
-    }
-  });
 
   if (requests.length > 0) {
     await sheets.spreadsheets.batchUpdate({
@@ -534,8 +521,8 @@ app.post('/api/save-product', async (req, res) => {
     console.log(`   leadTime: ${product.leadTime}, comments: ${product.comments}`);
 
     const rowData = [
-      product.imageUrl ? `=IMAGE("${product.imageUrl}", 1)` : '', // A: Image (A:B merged)
-      '', // B: Empty (merged with A)
+      '', // A: Empty
+      product.imageUrl ? `=IMAGE("${product.imageUrl}", 1)` : '', // B: Image
       product.roomArea || '', // C: Room/Area
       specs, // D: Specs (colorFinish + additionalSpecs)
       product.productName, // E: Product Name
