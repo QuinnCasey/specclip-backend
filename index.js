@@ -293,7 +293,7 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
     3:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" }, // C: Room/Area
     4:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" }, // D: Specs
     5:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" }, // E: Product Name
-    6:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" }, // F: Source
+    6:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER", foregroundColor: { red: 0, green: 0, blue: 0 }, underline: false }, // F: Source (hyperlink styled black, no underline)
     7:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" }, // G: Dimensions/Qty
     8:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" }, // H: Lead Time
     9:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" }, // I: Comments
@@ -329,13 +329,17 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
     // Skip column 2 (image column — =IMAGE formula, no text formatting)
     if (colNum === 2) continue;
     
+    const textFormat = {
+      fontFamily: FONT_FAMILY,
+      fontSize: fmt.fontSize,
+      bold: fmt.bold
+    };
+    if (fmt.foregroundColor !== undefined) textFormat.foregroundColor = fmt.foregroundColor;
+    if (fmt.underline !== undefined) textFormat.underline = fmt.underline;
+
     const cellFormat = {
       backgroundColor: fmt.background,
-      textFormat: {
-        fontFamily: FONT_FAMILY,
-        fontSize: fmt.fontSize,
-        bold: fmt.bold
-      },
+      textFormat,
       horizontalAlignment: fmt.horizontalAlignment,
       wrapStrategy: fmt.wrap ? "WRAP" : "OVERFLOW_CELL"
     };
@@ -377,7 +381,20 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
     });
   }
   
-  
+  // Merge A:B for the image cell
+  requests.push({
+    mergeCells: {
+      range: {
+        sheetId: sheet.properties.sheetId,
+        startRowIndex: rowNumber - 1,
+        endRowIndex: rowNumber,
+        startColumnIndex: 0, // Column A
+        endColumnIndex: 2    // Through Column B
+      },
+      mergeType: "MERGE_ALL"
+    }
+  });
+
   if (requests.length > 0) {
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: sheetId,
@@ -512,8 +529,8 @@ app.post('/api/save-product', async (req, res) => {
     });
 
     const rowData = [
-      '', // A: Empty
-      product.imageUrl ? `=IMAGE("${product.imageUrl}", 1)` : '', // B: Image
+      product.imageUrl ? `=IMAGE("${product.imageUrl}", 1)` : '', // A: Image (A:B merged)
+      '', // B: Empty (merged with A)
       product.roomArea || '', // C: Room/Area
       specs, // D: Specs (colorFinish + additionalSpecs)
       product.productName, // E: Product Name
