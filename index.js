@@ -546,7 +546,7 @@ app.post('/api/save-product', async (req, res) => {
       product.status || 'Sourced' // K: Status
     ];
 
-    // Always insert a row (creates the row whether inserting mid-sheet or appending)
+    // Insert a row — inheritFromBefore allows appending at end of grid and copies format from row above
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: sheetId,
       requestBody: {
@@ -557,40 +557,13 @@ app.post('/api/save-product', async (req, res) => {
               dimension: 'ROWS',
               startIndex: insertRow - 1,
               endIndex: insertRow
-            }
+            },
+            inheritFromBefore: insertRow > 1
           }
         }]
       }
     });
     console.log(`   Inserted row at ${insertRow}`);
-
-    // Copy formatting from row above
-    if (insertRow > 2) {
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId: sheetId,
-        requestBody: {
-          requests: [{
-            copyPaste: {
-              source: {
-                sheetId: sheet.properties.sheetId,
-                startRowIndex: insertRow - 2,
-                endRowIndex: insertRow - 1,
-                startColumnIndex: 0,
-                endColumnIndex: 11
-              },
-              destination: {
-                sheetId: sheet.properties.sheetId,
-                startRowIndex: insertRow - 1,
-                endRowIndex: insertRow,
-                startColumnIndex: 0,
-                endColumnIndex: 11
-              },
-              pasteType: 'PASTE_FORMAT'
-            }
-          }]
-        }
-      });
-    }
 
     // Write data
     await sheets.spreadsheets.values.update({
