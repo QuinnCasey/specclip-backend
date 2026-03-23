@@ -546,28 +546,26 @@ app.post('/api/save-product', async (req, res) => {
       product.status || 'Sourced' // K: Status
     ];
 
-    // Insert row if needed
-    if (insertRow <= lastRow) {
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId: sheetId,
-        requestBody: {
-          requests: [{
-            insertDimension: {
-              range: {
-                sheetId: sheet.properties.sheetId,
-                dimension: 'ROWS',
-                startIndex: insertRow - 1,
-                endIndex: insertRow
-              }
+    // Always insert a row (creates the row whether inserting mid-sheet or appending)
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: {
+        requests: [{
+          insertDimension: {
+            range: {
+              sheetId: sheet.properties.sheetId,
+              dimension: 'ROWS',
+              startIndex: insertRow - 1,
+              endIndex: insertRow
             }
-          }]
-        }
-      });
-      console.log(`   Inserted row at ${insertRow}`);
-    }
+          }
+        }]
+      }
+    });
+    console.log(`   Inserted row at ${insertRow}`);
 
-    // Copy formatting from row above (only when we inserted mid-sheet; appending auto-expands)
-    if (insertRow > 2 && insertRow <= lastRow) {
+    // Copy formatting from row above
+    if (insertRow > 2) {
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId: sheetId,
         requestBody: {
