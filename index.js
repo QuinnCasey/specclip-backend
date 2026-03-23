@@ -529,7 +529,7 @@ app.post('/api/save-product', async (req, res) => {
       product.quantity ? `Qty: ${product.quantity}` : ''
     ].filter(Boolean).join('\n');
 
-    const siteName = extractSiteName(product.pageUrl || '');
+    const siteName = extractSiteName(product.pageUrl || '').toUpperCase();
     const sourceCell = product.pageUrl
       ? `=HYPERLINK("${product.pageUrl}","${siteName.replace(/"/g, '""')}")`
       : siteName;
