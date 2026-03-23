@@ -163,7 +163,7 @@ app.get('/auth/callback', async (req, res) => {
               justify-content: center;
               height: 100vh;
               margin: 0;
-              background: #451F1F;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             }
             .container {
               background: white;
@@ -173,7 +173,7 @@ app.get('/auth/callback', async (req, res) => {
               text-align: center;
               max-width: 400px;
             }
-            h1 { color: #451F1F; margin: 0 0 20px 0; }
+            h1 { color: #667eea; margin: 0 0 20px 0; }
             p { color: #666; line-height: 1.6; }
             .success { font-size: 48px; margin-bottom: 20px; }
           </style>
@@ -287,19 +287,19 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
     }
   }
   
-  // Column formatting rules (1-indexed, matching Apps Script)
+  // Column formatting rules (1-indexed, matching new sheet structure)
   const columnFormats = {
-    2:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: DATE_FORMAT, horizontalAlignment: "CENTER" },
-    3:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
-    4:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
-    5:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
-    6:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
-    7:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
-    8:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
-    9:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "CENTER" },
-    10: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: DATE_FORMAT, horizontalAlignment: "CENTER" },
-    11: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: null, horizontalAlignment: "LEFT" },
-    12: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: null, horizontalAlignment: "LEFT" }
+    // B: Image (merged A-B) - skip formatting to preserve IMAGE() formula
+    3:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: null, horizontalAlignment: "LEFT" }, // C: Room/Area
+    4:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" }, // D: Additional Specs
+    5:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" }, // E: Product Name
+    6:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" }, // F: Source
+    7:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" }, // G: Dimensions | Qty
+    8:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" }, // H: Lead Time
+    9:  { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: true,  numberFormat: null, horizontalAlignment: "LEFT" }, // I: Comments
+    10: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: DATE_FORMAT, horizontalAlignment: "LEFT" }, // J: Last Updated
+    11: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: null, horizontalAlignment: "LEFT" }, // K: Status
+    12: { background: { red: 1, green: 1, blue: 1 }, fontSize: 10, bold: false, wrap: false, numberFormat: null, horizontalAlignment: "LEFT" }  // L: Color/Finish
   };
   
   const requests = [];
@@ -326,8 +326,8 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
   for (const [col, fmt] of Object.entries(columnFormats)) {
     const colNum = Number(col);
     
-    // Skip column 3 (image column)
-    if (colNum === 3) continue;
+    // Skip columns A (1) and B (2) - they're merged for the image
+    if (colNum === 1 || colNum === 2) continue;
     
     const cellFormat = {
       backgroundColor: fmt.background,
@@ -377,7 +377,7 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
     });
   }
   
-  // Merge cells A:B for the date column (column 2 logic)
+  // Merge cells A:B for the image column
   requests.push({
     mergeCells: {
       range: {
@@ -385,7 +385,7 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
         startRowIndex: rowNumber - 1,
         endRowIndex: rowNumber,
         startColumnIndex: 0, // Column A
-        endColumnIndex: 2    // Column B
+        endColumnIndex: 2    // Through Column B
       },
       mergeType: "MERGE_ALL"
     }
@@ -498,20 +498,11 @@ app.post('/api/save-product', async (req, res) => {
       }
     }
 
-    // Build row data
-    const specs = [
-      product.colorFinish,
-      product.additionalSpecs
-    ].filter(Boolean).join(' | ');
-
+    // Build row data with new mapping
+    // Dimensions | Qty (combined with pipe separator)
     const dimensionsQty = [
       product.dimensions,
       product.quantity ? `Qty: ${product.quantity}` : ''
-    ].filter(Boolean).join('\n');
-
-    const leadTimeComments = [
-      product.price,
-      product.leadTimeComments
     ].filter(Boolean).join(' | ');
 
     const siteName = extractSiteName(product.pageUrl || '');
@@ -525,17 +516,18 @@ app.post('/api/save-product', async (req, res) => {
     });
 
     const rowData = [
-      '', // A: Empty (merged)
-      '', // B: Empty (merged)
-      product.imageUrl ? `=IMAGE("${product.imageUrl}", 1)` : '', // C: Image
-      product.roomArea || '', // D: Room/Area
-      specs, // E: Specs
-      product.productName, // F: Product Name
-      siteName, // G: Source (with URL in note)
-      dimensionsQty, // H: Dimensions/Qty
-      leadTimeComments, // I: Lead Time/Comments
+      '', // A: Empty (merged with B for image)
+      product.imageUrl ? `=IMAGE("${product.imageUrl}", 1)` : '', // B: Image (merged A-B)
+      product.roomArea || '', // C: Room/Area
+      product.additionalSpecs || '', // D: Additional Specs
+      product.productName, // E: Product Name
+      siteName, // F: Source (with URL in note)
+      dimensionsQty, // G: Dimensions | Qty
+      product.leadTime || '', // H: Lead Time
+      product.comments || '', // I: Comments
       timestamp, // J: Last Updated
-      product.status || 'Sourced' // K: Status
+      product.status || 'Sourced', // K: Status
+      product.colorFinish || '' // L: Color/Finish
     ];
 
     // Insert row if needed
@@ -589,7 +581,7 @@ app.post('/api/save-product', async (req, res) => {
     // Write data
     await sheets.spreadsheets.values.update({
       spreadsheetId: sheetId,
-      range: `${sheetTitle}!A${insertRow}:K${insertRow}`,
+      range: `${sheetTitle}!A${insertRow}:L${insertRow}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: [rowData]
@@ -607,8 +599,8 @@ app.post('/api/save-product', async (req, res) => {
                 sheetId: sheet.properties.sheetId,
                 startRowIndex: insertRow - 1,
                 endRowIndex: insertRow,
-                startColumnIndex: 6, // Column G
-                endColumnIndex: 7
+                startColumnIndex: 5, // Column F (Source)
+                endColumnIndex: 6
               },
               rows: [{
                 values: [{
