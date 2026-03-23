@@ -540,7 +540,7 @@ app.post('/api/save-product', async (req, res) => {
       product.productName, // E: Product Name
       sourceCell, // F: Source (hyperlink)
       dimensionsQty, // G: Dimensions/Qty
-      product.leadTime || '', // H: Lead Time
+      product.leadTime || product.leadTimeComments || '', // H: Lead Time
       product.comments || '', // I: Comments
       timestamp, // J: Last Updated
       product.status || 'Sourced' // K: Status
