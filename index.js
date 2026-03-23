@@ -380,7 +380,33 @@ async function applyRowFormatting(sheets, sheetId, sheet, rowNumber) {
       }
     });
   }
-  
+
+  // Merge A:B for the image cell and center align it
+  requests.push({
+    mergeCells: {
+      range: {
+        sheetId: sheet.properties.sheetId,
+        startRowIndex: rowNumber - 1,
+        endRowIndex: rowNumber,
+        startColumnIndex: 0,
+        endColumnIndex: 2
+      },
+      mergeType: "MERGE_ALL"
+    }
+  });
+  requests.push({
+    repeatCell: {
+      range: {
+        sheetId: sheet.properties.sheetId,
+        startRowIndex: rowNumber - 1,
+        endRowIndex: rowNumber,
+        startColumnIndex: 0,
+        endColumnIndex: 1
+      },
+      cell: { userEnteredFormat: { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } },
+      fields: "userEnteredFormat(horizontalAlignment,verticalAlignment)"
+    }
+  });
 
   if (requests.length > 0) {
     await sheets.spreadsheets.batchUpdate({
@@ -521,8 +547,8 @@ app.post('/api/save-product', async (req, res) => {
     console.log(`   leadTime: ${product.leadTime}, comments: ${product.comments}`);
 
     const rowData = [
-      '', // A: Empty
-      product.imageUrl ? `=IMAGE("${product.imageUrl}", 1)` : '', // B: Image
+      product.imageUrl ? `=IMAGE("${product.imageUrl}", 1)` : '', // A: Image (top-left of merged A:B)
+      '', // B: Empty (merged with A)
       product.roomArea || '', // C: Room/Area
       specs, // D: Specs (colorFinish + additionalSpecs)
       product.productName, // E: Product Name
