@@ -566,8 +566,8 @@ app.post('/api/save-product', async (req, res) => {
       console.log(`   Inserted row at ${insertRow}`);
     }
 
-    // Copy formatting from row above
-    if (insertRow > 2) {
+    // Copy formatting from row above (only when we inserted mid-sheet; appending auto-expands)
+    if (insertRow > 2 && insertRow <= lastRow) {
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId: sheetId,
         requestBody: {
